@@ -4,39 +4,33 @@ import BreakLabel from './Components/BreakLabel';
 import SessionLabel from './Components/SessionLabel';
 import TimerLabel from './Components/TimerLabel';
 import {Button,Paper} from '@material-ui/core';
-const audio=document.getElementById('beep');
 class App extends Component{
   constructor(props){
     super (props);
-    this.countdown=undefined;
     this.state={
       breakLength:5,
       sessionLength:25,
-      timeLeft:25*60,
-      timerIndicator:'POMODORO',
-      running:false
+      displayMins:25,
+      displaySec:'00',
+      timerId:'',
+      running:false,
+      break:false,
+      timerIndicator:'POMODORO'
     }
     this.handleDecrement=this.handleDecrement.bind(this);
     this.handleIncrement=this.handleIncrement.bind(this);
     this.reset=this.reset.bind(this);
+    this.start=this.start.bind(this);
+    this.stop=this.stop.bind(this);
     this.handleStartStop=this.handleStartStop.bind(this);
-    this.convertToTime=this.convertToTime.bind(this);
-  }
-  componentWillMount(){
-    clearInterval(this.countdown);
   }
   reset(){
     this.setState({
       breakLength:5,
       sessionLength:25,
-      timeLeft:25*60,
-      timerIndicator:'POMODORO',
-      running:false
+      displayMins:25,
+      displaySec:'00'
     })
-    clearInterval(this.countdown);
-
-    audio.pause()
-    audio.currentTime=0;
   }
   handleDecrement(e){
     const {id}=e.target;
@@ -48,7 +42,7 @@ class App extends Component{
     else if (id==='session-decrement' && this.state.sessionLength>1){
       this.setState({
         sessionLength:this.state.sessionLength-1,
-        timeLeft:(this.state.sessionLength-1)*60
+        displayMins:this.state.sessionLength-1
       })
     }
   }
@@ -62,57 +56,73 @@ class App extends Component{
     else if (id==='session-increment' && this.state.sessionLength<60){
       this.setState({
         sessionLength:this.state.sessionLength+1,
-        timeLeft:(this.state.sessionLength+1)*60
+        displayMins:this.state.sessionLength+1
       })
     }
+  }
+  start(){
+    let mins=this.state.displayMins;
+    let secs=mins*60+Number(this.state.displaySec);
+    const countDownId=setInterval(
+      ()=>{
+        if(secs>0){
+          secs=secs-1;
+          let dispmin=Math.floor(secs/60);
+          let dispsec=secs%60;
+          if(dispmin<10){
+            dispmin='0'+dispmin;
+          }
+          if (dispsec<10){
+            dispsec='0'+dispsec;
+          }
+          this.setState({
+            displayMins:dispmin,
+            displaySec:dispsec,
+            timerId:countDownId,
+            running:true
+          })
+        }else{
+          if(this.state.break===false){
+            secs=this.state.breakLength*60;
+            secs=secs-1;
+            let dispmin=Math.floor(secs/60);
+            let dispsec=secs%60;
+            if(dispmin<10){
+              dispmin='0'+dispmin;
+            }
+            if (dispsec<10){
+              dispsec='0'+dispsec;
+            }
+            this.setState({
+              displayMins:dispmin,
+              displaySec:dispsec,
+              timerIndicator:'BREAK TIME',
+              break:true
+            })
+          }
+        }
+      }      
+    ,1000)
+  }
+  stop(){
+    clearInterval(this.state.timerId);
+    this.setState({
+      running:false
+    })
   }
   handleStartStop(){
-    const {running}=this.state;
-    if(running){
-      clearInterval(this.countdown);
-      this.setState({
-        running:false
-      })
-    }else {
-      this.setState({
-        running:true
-      })
-      this.countdown=setInterval(()=>{
-        const{
-          breakLength,
-          sessionLength,
-          timeLeft,
-          timerIndicator
-        }=this.state;
-        if(timeLeft===0){
-          this.setState({
-            timerIndicator:(timerIndicator==='POMODORO')?'BREAK TIME':'POMODORO',
-            timeLeft:(timerIndicator==='POMODORO')?breakLength*60:sessionLength*60
-          })
-          audio.play()
-        }else{
-          this.setState({
-            timeLeft:timeLeft-1
-          })
-        }
-      },1000)
+    if(this.state.running===false){
+      this.start()
+    }else{
+      this.stop()
     }
-  }
-  convertToTime(count){
-    let min=Math.floor(count/60);
-    let sec=count%60;
-
-    min=(min<10)?('0'+min):min;
-    sec=(sec<10)?('0'+sec):sec;
-
-    return(`${min}:${sec}`);
   }
   render(){
     return(
       <Paper elevation={3} className='container'>
         <BreakLabel increment={this.handleIncrement} breakLength={this.state.breakLength} decrement={this.handleDecrement} />
         <div className='interface'>
-          <TimerLabel indicator={this.state.timerIndicator} time={this.convertToTime(this.state.timeLeft)} />
+          <TimerLabel indicator={this.state.timerIndicator} mins={this.state.displayMins} sec={this.state.displaySec} />
           <div className='btn-grp'>
             <Button variant='contained' color='primary' id='start_stop' onClick={this.handleStartStop}>start/stop</Button>
             <Button variant='contained' color='secondary' id='reset' onClick={this.reset}>Reset</Button>
